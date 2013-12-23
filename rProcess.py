@@ -101,7 +101,7 @@ class rProcess(object):
         for file_item in torrent.get_files():  # will only delete files, not dir/sub-dir
             file_path = os.path.join(torrent.directory, file_item.path)
             os.unlink(file_path)
-            deleted.append(file_path)
+            deleted.append(file_item.path)
 
         if torrent.is_multi_file() and torrent.directory.endswith(torrent.name):
             # remove empty directories bottom up
