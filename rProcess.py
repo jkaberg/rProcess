@@ -17,6 +17,7 @@
 #    Based on bits and parts of rTorrent module in CouchPotatoServer
 
 import os
+import re
 import sys
 import shutil
 import logging
@@ -63,6 +64,7 @@ class rProcess(object):
         ).split('|'))
         archive_ext = tuple((config.get("Miscellaneous", "compressed")).split('|'))
         ignore_words = (config.get("Miscellaneous", "ignore")).split('|')
+        rar_search = '(?P<file>^(?P<base>(?:(?!\.part\d+\.rar$).)*)\.(?:(?:part0*1\.)?rar)$)'
 
         try:
             media_files = []
@@ -77,7 +79,11 @@ class rProcess(object):
                         media_files.append(os.path.join(torrent.directory, file_path))
 
                     elif file_path.endswith(archive_ext):
-                        extracted_files.append(os.path.join(torrent.directory, file_path))
+                        if 'part' in file_path:
+                            if re.search(rar_search, file_path):
+                                extracted_files.append(os.path.join(torrent.directory, file_path))
+                        else:
+                            extracted_files.append(os.path.join(torrent.directory, file_path))
 
             torrent_info = {
                 'hash': torrent.info_hash,
@@ -119,23 +125,24 @@ class rProcess(object):
     def process_file(self, source_file, destination, action):
         file_name = os.path.split(source_file)[1]
         destination_file = os.path.join(destination, file_name)
-        try:
-            if action == "move":
-                logger.debug(loggerHeader + "Moving file: %s to: %s", file_name, destination)
-                shutil.move(source_file, destination_file)
-                return True
-            elif action == "link":
-                logger.debug(loggerHeader + "Linking file: %s to: %s", file_name, destination)
-                os.link(source_file, destination_file)
-                return True
-            elif action == "copy":
-                logger.debug(loggerHeader + "Copying file: %s to: %s", file_name, destination)
-                shutil.copy(source_file, destination_file)
-                return True
+        if not os.path.isfile(destination_file):
+            try:
+                if action == "move":
+                    logger.debug(loggerHeader + "Moving file: %s to: %s", file_name, destination)
+                    shutil.move(source_file, destination_file)
+                    return True
+                elif action == "link":
+                    logger.debug(loggerHeader + "Linking file: %s to: %s", file_name, destination)
+                    os.link(source_file, destination_file)
+                    return True
+                elif action == "copy":
+                    logger.debug(loggerHeader + "Copying file: %s to: %s", file_name, destination)
+                    shutil.copy(source_file, destination_file)
+                    return True
 
-        except Exception, e:
-            logger.error(loggerHeader + "Failed to process %s: %s %s", file_name, e, traceback.format_exc())
-        return False
+            except Exception, e:
+                logger.error(loggerHeader + "Failed to process %s: %s %s", file_name, e, traceback.format_exc())
+            return False
 
     def extract_file(self, source_file, destination):
         try:
