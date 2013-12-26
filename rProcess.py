@@ -155,7 +155,16 @@ class rProcess(object):
 
     def make_directories(self, destination):
         if not os.path.exists(destination):
-            os.makedirs(destination)
+            try:
+                os.makedirs(destination)
+                logger.info(loggerHeader + "Creating directory: %s" % destination)
+
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    logger.error(loggerHeader + "Failed to create directory: %s %s %s", destination,
+                                 e, traceback.format_exc())
+                    raise
+                pass
 
     def main(self, torrent_hash):
         output_dir = config.get("General", "outputDirectory")
