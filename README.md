@@ -5,8 +5,10 @@ simple post processor for rTorrent
 
 ###Options
 
-- Link/copy/move or extract content to destination, set in config.cfg
+- Link/copy/move or extract content to destination
 - Append label to destination path
+
+Configure you're setup in config.cfg
 
 ###Usage
 
