@@ -8,7 +8,7 @@ simple post processor for rTorrent
 - Link/copy/move or extract content to destination
 - Ignore torrents with x label
 - Append label to destination path
-- Delete torrrent from rtorrent (with files) once rProcess is done
+- Delete torrrent from rtorrent (and files) once rProcess is done
 
 ###Usage
 
