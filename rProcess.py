@@ -130,15 +130,14 @@ class rProcess(object):
                 if action == "move":
                     logger.debug(loggerHeader + "Moving file: %s to: %s", file_name, destination)
                     shutil.move(source_file, destination_file)
-                    return True
                 elif action == "link":
                     logger.debug(loggerHeader + "Linking file: %s to: %s", file_name, destination)
                     os.link(source_file, destination_file)
-                    return True
                 elif action == "copy":
                     logger.debug(loggerHeader + "Copying file: %s to: %s", file_name, destination)
                     shutil.copy(source_file, destination_file)
-                    return True
+
+                return True
 
             except Exception, e:
                 logger.error(loggerHeader + "Failed to process %s: %s %s", file_name, e, traceback.format_exc())
