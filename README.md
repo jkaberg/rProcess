@@ -3,13 +3,19 @@ rProcess
 
 simple post processor for rTorrent
 
+###Options
 
-#Usage
+- Link/copy/move or extract content to destination
+- Ignore torrents with x label
+- Append label to destination path
+- Delete torrrent from rtorrent (and files) once rProcess is done
 
-add
+###Usage
 
+Add (note the **/path/to/rprocess/rProcess.py** bellow)
+
+```
 system.method.set_key=event.download.finished,my_script,"execute={python,/path/to/rprocess/rProcess.py,$d.get_hash=}"
+```
 
-to .rtorrent.rc
-
-edit config.cfg to you're taste
+to the bottom of (usally in home/$user/) **.rtorrent.rc** and then edit config.cfg to you're taste
