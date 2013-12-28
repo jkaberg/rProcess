@@ -10,8 +10,6 @@ simple post processor for rTorrent
 - Append label to destination path
 - Delete torrrent(with files) once process is complete
 
-Configure you're setup in config.cfg
-
 ###Usage
 
 Add (note the **/path/to/rprocess/rProcess.py** bellow)
