@@ -31,7 +31,7 @@ class TorrentClient(object):
         files = []
         try:
             for f in torrent.get_files():
-                files.append(os.path.join(torrent.directory, f.path.lower()))
+                files.append(os.path.normpath(os.path.join(torrent.directory, f.path.lower())))
 
             torrent_info = {
                 'hash': torrent.info_hash,
@@ -44,25 +44,26 @@ class TorrentClient(object):
 
         except Exception:
             raise
-            return False
 
         return torrent_info if torrent_info else False
 
     def delete_torrent(self, torrent):
         deleted = []
+        try:
+            for file_item in torrent.get_files():
+                file_path = os.path.join(torrent.directory, file_item.path)
+                os.unlink(file_path)
+                deleted.append(file_item.path)
 
-        for file_item in torrent.get_files():
-            file_path = os.path.join(torrent.directory, file_item.path)
-            os.unlink(file_path)
-            deleted.append(file_item.path)
-
-        if torrent.is_multi_file() and torrent.directory.endswith(torrent.name):
-            try:
-                for path, _, _ in os.walk(torrent.directory, topdown=False):
-                    os.rmdir(path)
-                    deleted.append(path)
-            except:
-                pass
+            if torrent.is_multi_file() and torrent.directory.endswith(torrent.name):
+                try:
+                    for path, _, _ in os.walk(torrent.directory, topdown=False):
+                        os.rmdir(path)
+                        deleted.append(path)
+                except:
+                    pass
+        except Exception:
+            raise
 
         torrent.erase()
 

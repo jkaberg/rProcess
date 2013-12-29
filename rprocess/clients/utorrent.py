@@ -28,7 +28,7 @@ class TorrentClient(object):
 
     def find_torrent(self, hash):
         try:
-            _, torrent_list = self.conn.list()
+            torrent_list = self.conn.list()[1]
 
             for t in torrent_list['torrents']:
                 if t[0] == hash:
@@ -42,16 +42,18 @@ class TorrentClient(object):
     def get_torrent(self, torrent):
         torrent_files = []
         try:
+            if not torrent[26]:
+                raise 'Only compatible with uTorrent 3.0+'
+
             if torrent[4] == 1000:
                 completed = True
             else:
                 completed = False
 
-            _, data = self.conn.getfiles(torrent[0])
-            _, files = data['files']
+            files = self.conn.getfiles(torrent[0])[1]['files'][1]
 
             for f in files:
-                torrent_files.append(os.path.join(torrent[26], f[0]))
+                torrent_files.append(os.path.normpath(os.path.join(torrent[26], f[0])))
 
             torrent_info = {
                 'hash': torrent[0],
@@ -69,11 +71,10 @@ class TorrentClient(object):
     def delete_torrent(self, torrent):
         deleted = []
         try:
-            _, data = self.conn.getfiles(torrent[0])
-            _, files = data['files']
+            files = self.conn.getfiles(torrent[0])[1]['files'][1]
 
             for f in files:
-                deleted.append(os.path.join(torrent[26], f[0]))
+                deleted.append(os.path.normpath(os.path.join(torrent[26], f[0])))
 
             self.conn.removedata(torrent[0])
 
