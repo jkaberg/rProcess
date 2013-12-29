@@ -19,10 +19,11 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 # from rtorrent.rpc import Method
+import rtorrent.rpc
 
-from clients.rtorrent.common import safe_repr
+from rtorrent.common import safe_repr
 
-Method = clients.rtorrent.rpc.Method
+Method = rtorrent.rpc.Method
 
 
 class File:
@@ -45,7 +46,7 @@ class File:
 
         @return: None
         """
-        multicall = clients.rtorrent.rpc.Multicall(self)
+        multicall = rtorrent.rpc.Multicall(self)
         retriever_methods = [m for m in methods
                              if m.is_retriever() and m.is_available(self._rt_obj)]
         for method in retriever_methods:

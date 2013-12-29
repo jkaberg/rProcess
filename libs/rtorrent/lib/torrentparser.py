@@ -17,12 +17,12 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+from rtorrent.compat import is_py3
 import os.path
 import re
+import rtorrent.lib.bencode as bencode
 import hashlib
-
-from clients import rtorrent as bencode
-from clients.rtorrent.compat import is_py3
 
 if is_py3():
     from urllib.request import urlopen  # @UnresolvedImport @UnusedImport

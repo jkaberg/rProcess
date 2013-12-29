@@ -25,28 +25,17 @@ import traceback
 import ConfigParser
 from base64 import b16encode, b32decode
 
-from libs.unrar2 import RarFile
-
+# monkey patching
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'libs'))
+
+from libs.unrar2 import RarFile
 
 ver = 0.1
 
 class rProcess(object):
 
     def __init__(self):
-        client = config.get("Client", "client")
-        if client == 'rtorrent':
-            import rprocess.clients.rtorrent
-        elif client == 'utorrent':
-            import rprocess.clients.utorrent
-#        else:
-
-#        try:
-#            __import__('clients.' + config.get("Client", "client"))
-#        except Exception, e:
-#            logger.error(loggerHeader + "No client to work with: %s %s ", e, traceback.format_exc())
-#            sys.exit(-1)
-
+        pass
 
     def filter_files(self, files):
         media_ext = tuple((
@@ -55,13 +44,14 @@ class rProcess(object):
             config.get("Miscellaneous", "other")).split('|'))
         archive_ext = tuple((config.get("Miscellaneous", "compressed")).split('|'))
         ignore_words = (config.get("Miscellaneous", "ignore")).split('|')
+
+        # TODO: get first archive from rar header instead
         rar_search = '(?P<file>^(?P<base>(?:(?!\.part\d+\.rar$).)*)\.(?:(?:part0*1\.)?rar)$)'
 
         media_files = []
         extracted_files = []
 
         for f in files:
-            # ignore unwanted files
             if not any(word in f for word in ignore_words):
                 if f.endswith(media_ext):
                     media_files.append(f)
@@ -132,39 +122,47 @@ class rProcess(object):
         delete_finished = config.getboolean("General", "deleteFinished")
         append_label = config.getboolean("General", "appendLabel")
         ignore_label = (config.get("General", "ignoreLabel")).split('|')
+        client_name = config.get("Client", "client")
 
-        if not torrent.connect(config.get("Client", "host"),
-                               config.get("Client", "username"),
-                               config.get("Client", "password")):
+        # TODO: fix this.. ugly!
+        if client_name == 'rtorrent':
+            import rprocess.clients.rtorrent as TorClient
+        elif client_name == 'utorrent':
+            import rprocess.clients.utorrent as TorClient
+
+        client = TorClient.TorrentClient()
+
+        if not client.connect(config.get("Client", "host"), config.get("Client", "username"), config.get("Client", "password")):
             logger.error(loggerHeader + "Couldn't connect to %s, exiting", config.get("Client", "client"))
             sys.exit(-1)
 
-        t = torrent.find_torrent(torrent_hash)
+        torrent = client.find_torrent(torrent_hash)
 
-        if t is None:
+        if torrent is None:
             logger.error(loggerHeader + "Couldn't find torrent with hash: %s", torrent_hash)
             sys.exit(-1)
 
-        t_info = torrent.get_torrent(t)
+        torrent_info = client.get_torrent(torrent)
 
-        if t_info:
-            if t_info['completed']:
-                logger.info(loggerHeader + "Directory: %s", t_info['folder'])
-                logger.info(loggerHeader + "Name: %s", t_info['name'])
-                logger.debug(loggerHeader + "Hash: %s", t_info['hash'])
-                if t_info['label']:
-                    logger.info(loggerHeader + "Torrent Label: %s", t_info['label'])
+        if torrent_info:
+            if torrent_info['completed']:
+                logger.info(loggerHeader + "Client: %s", client_name)
+                logger.info(loggerHeader + "Directory: %s", torrent_info['folder'])
+                logger.info(loggerHeader + "Name: %s", torrent_info['name'])
+                logger.debug(loggerHeader + "Hash: %s", torrent_info['hash'])
+                if torrent_info['label']:
+                    logger.info(loggerHeader + "Torrent Label: %s", torrent_info['label'])
 
-                if any(word in t_info['label'] for word in ignore_label):
-                    logger.error(loggerHeader + "Exiting: Found unwanted label: %s", t_info['label'])
+                if any(word in torrent_info['label'] for word in ignore_label):
+                    logger.error(loggerHeader + "Exiting: Found unwanted label: %s", torrent_info['label'])
                     sys.exit(-1)
 
-                destination = os.path.join(output_dir, t_info['label'] if append_label else '',
-                                           t_info['name'])
+                destination = os.path.join(output_dir, torrent_info['label'] if append_label else '',
+                                           torrent_info['name'])
 
                 self.make_directories(destination)
 
-                media_files, extract_files = self.filter_files(t_info['files'])
+                media_files, extract_files = self.filter_files(torrent_info['files'])
 
                 for f in media_files:  # copy/link/move files
                     process = self.process_file(f, destination, file_action)
@@ -183,7 +181,7 @@ class rProcess(object):
                         logger.error(loggerHeader + "Failed to extract: %s", file_name)
 
                 if delete_finished:
-                    deleted_files = torrent.delete_torrent(t)
+                    deleted_files = client.delete_torrent(torrent)
                     logger.info(loggerHeader + "Removing torrent with hash: %s", torrent_hash)
                     for f in deleted_files:
                         logger.info(loggerHeader + "Removed: %s", f)
