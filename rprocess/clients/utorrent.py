@@ -1,8 +1,4 @@
 import os
-try:
-    import json
-except ImportError:
-    import simplejson as json
 
 from libs.utorrent.client import UTorrentClient
 
