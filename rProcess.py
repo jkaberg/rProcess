@@ -36,7 +36,7 @@ class rProcess(object):
     def __init__(self):
         client = config.get("Client", "client")
         if client == 'rtorrent':
-            import rprocess.clients.client
+            import rprocess.clients.rtorrent
         elif client == 'utorrent':
             import rprocess.clients.utorrent
 #        else:
