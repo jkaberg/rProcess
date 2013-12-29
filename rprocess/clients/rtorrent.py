@@ -1,11 +1,8 @@
 import os
-import sys
-import traceback
-print sys.path
 
-from rtorrent import RTorrent
+from libs.rtorrent import RTorrent
 
-class rTorrent(object):
+class TorrentClient(object):
     def __init__(self):
         self.conn = None
 
@@ -14,7 +11,6 @@ class rTorrent(object):
             return self.conn
 
         if not host:
-            raise "Config properties are not filled in correctly, url is missing"
             return False
 
         if username and password:
@@ -28,11 +24,14 @@ class rTorrent(object):
 
         return self.conn
 
-    def get_torrent(self, torrent):
+    def find_torrent(self, hash):
+        return self.conn.find_torrent(hash)
+
+    def get_torrent (self, torrent):
         files = []
         try:
             for f in torrent.get_files():
-                files.append(f.path.lower())
+                files.append(os.path.join(torrent.directory, f.path.lower()))
 
             torrent_info = {
                 'hash': torrent.info_hash,
@@ -43,8 +42,8 @@ class rTorrent(object):
                 'files': files,
                 }
 
-        except Exception, e:
-            raise "Failed to get status from rTorrent: %s %s", e, traceback.format_exc()
+        except Exception:
+            raise
             return False
 
         return torrent_info if torrent_info else False
@@ -68,16 +67,3 @@ class rTorrent(object):
         torrent.erase()
 
         return deleted
-
-class torrent(object):
-    def __init__(self):
-        pass
-
-    def connect(self, host, username, password):
-        return rTorrent.connect(host, username, password)
-
-    def get_torrent (self, t):
-        return rTorrent.get_torrent(t)
-
-    def delete_torrent(self, t):
-        return rTorrent.delete_torrent(t)
