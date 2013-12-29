@@ -28,6 +28,7 @@ from base64 import b16encode, b32decode
 # monkey patching
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'libs'))
 
+from helpers.variable import link, symlink
 from libs.unrar2 import RarFile
 
 ver = 0.1
@@ -76,7 +77,10 @@ class rProcess(object):
                     shutil.move(source_file, destination_file)
                 elif action == "link":
                     logger.debug(loggerHeader + "Linking file: %s to: %s", file_name, destination)
-                    os.link(source_file, destination_file)
+                    link(source_file, destination_file)
+                elif action == "symlink":
+                    logger.debug(loggerHeader + "Sym-linking file: %s to: %s", file_name, destination)
+                    symlink(source_file, destination_file)
                 elif action == "copy":
                     logger.debug(loggerHeader + "Copying file: %s to: %s", file_name, destination)
                     shutil.copy(source_file, destination_file)
