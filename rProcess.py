@@ -28,7 +28,7 @@ from base64 import b16encode, b32decode
 # monkey patching
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'libs'))
 
-from helpers.variable import link, symlink
+from rprocess.helpers.variable import link, symlink
 from libs.unrar2 import RarFile
 
 ver = 0.1
