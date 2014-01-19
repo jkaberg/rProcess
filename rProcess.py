@@ -133,6 +133,8 @@ class rProcess(object):
             import rprocess.clients.rtorrent as TorClient
         elif client_name == 'utorrent':
             import rprocess.clients.utorrent as TorClient
+        elif client_name == 'transmission':
+            import rprocess.clients.transmission as TorClient
 
         client = TorClient.TorrentClient()
 
