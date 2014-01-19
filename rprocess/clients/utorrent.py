@@ -40,27 +40,33 @@ class TorrentClient(object):
         return torrent if torrent else False
 
     def get_torrent(self, torrent):
+        if not torrent[26]:
+            raise 'Only compatible with uTorrent 3.0+'
+
         torrent_files = []
+        torrent_completed = False
+        torrent_directory = os.path.normpath(torrent[26])
         try:
-            if not torrent[26]:
-                raise 'Only compatible with uTorrent 3.0+'
 
             if torrent[4] == 1000:
-                completed = True
-            else:
-                completed = False
+                torrent_completed = True
 
             files = self.conn.getfiles(torrent[0])[1]['files'][1]
 
             for f in files:
-                torrent_files.append(os.path.normpath(os.path.join(torrent[26], f[0])))
+                if not os.path.normpath(f[0]).startswith(torrent_directory):
+                    file_path = os.path.join(torrent_directory, f[0].lstrip('/'))
+                else:
+                    file_path = f[0]
+
+                torrent_files.append(file_path)
 
             torrent_info = {
                 'hash': torrent[0],
                 'name': torrent[2],
                 'label': torrent[11] if torrent[11] else '',
                 'folder': torrent[26],
-                'completed': completed,
+                'completed': torrent_completed,
                 'files': torrent_files,
             }
         except Exception:
