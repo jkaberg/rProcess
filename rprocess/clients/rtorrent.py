@@ -28,17 +28,16 @@ class TorrentClient(object):
         return self.conn.find_torrent(hash)
 
     def get_torrent (self, torrent):
+        torrent_files = []
+        torrent_directory = os.path.normpath(torrent.directory)
         try:
-            torrent_files = []
-            torrent_directory = os.path.normpath(torrent.directory)
-
             for f in torrent.get_files():
                 if not os.path.normpath(f.path).startswith(torrent_directory):
                     file_path = os.path.join(torrent_directory, f.path.lstrip('/'))
                 else:
                     file_path = f.path
 
-            torrent_files.append(file_path)
+                torrent_files.append(file_path)
 
             torrent_info = {
                 'hash': torrent.info_hash,
