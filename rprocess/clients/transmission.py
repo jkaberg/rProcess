@@ -71,7 +71,7 @@ class TorrentClient(object):
             torrent_info = {
                 'hash': torrent['hashString'],
                 'name': torrent['name'],
-                'label': 'transmission_has_no_labels',  # temporary workaround
+                'label': False,  # transmission has no current support for labels
                 'folder': torrent['downloadDir'],
                 'completed': torrent_completed,
                 'files': torrent_files,
