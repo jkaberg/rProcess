@@ -25,102 +25,47 @@ import traceback
 import ConfigParser
 from base64 import b16encode, b32decode
 
-from rtorrent import RTorrent
-from pyUnRAR2 import RarFile
+# monkey patching
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'libs'))
 
-ver = 0.001
+from rprocess.helpers.variable import link, symlink
+from libs.unrar2 import RarFile
+
+ver = 0.1
 
 class rProcess(object):
 
     def __init__(self):
-        self.rt = None
+        pass
 
-    def connect(self):
-        # Already connected?
-        if self.rt is not None:
-            return self.rt
-
-        # Ensure url is set
-        if not config.get("rTorrent", "host"):
-            logger.error(loggerHeader + "Config properties are not filled in correctly, url is missing")
-            return False
-
-        if config.get("rTorrent", "username") and config.get("rTorrent", "password"):  # using username/password
-            self.rt = RTorrent(
-                config.get("rTorrent", "host"),
-                config.get("rTorrent", "username"),
-                config.get("rTorrent", "password")
-            )
-        else:
-            self.rt = RTorrent(config.get("rTorrent", "host"))  # not using username/password
-
-        return self.rt
-
-    def get_torrent(self, torrent):
+    def filter_files(self, files):
         media_ext = tuple((
             config.get("Miscellaneous", "media") +
             config.get("Miscellaneous", "meta") +
-            config.get("Miscellaneous", "other")
-        ).split('|'))
+            config.get("Miscellaneous", "other")).split('|'))
         archive_ext = tuple((config.get("Miscellaneous", "compressed")).split('|'))
         ignore_words = (config.get("Miscellaneous", "ignore")).split('|')
+
+        # TODO: get first archive from rar header instead
         rar_search = '(?P<file>^(?P<base>(?:(?!\.part\d+\.rar$).)*)\.(?:(?:part0*1\.)?rar)$)'
 
-        try:
-            media_files = []
-            extracted_files = []
+        media_files = []
+        extracted_files = []
 
-            for file_item in torrent.get_files():
-                file_path = file_item.path.lower()
+        for f in files:
+            if not any(word in f for word in ignore_words):
+                if f.endswith(media_ext):
+                    media_files.append(f)
 
-                # ignore unwanted files
-                if not any(word in file_path for word in ignore_words):
-                    if file_path.endswith(media_ext):
-                        media_files.append(os.path.join(torrent.directory, file_path))
+                elif f.endswith(archive_ext):
+                    if 'part' in f:
+                        if re.search(rar_search, f):
+                            extracted_files.append(f)
+                    else:
+                        extracted_files.append(f)
 
-                    elif file_path.endswith(archive_ext):
-                        if 'part' in file_path:
-                            if re.search(rar_search, file_path):
-                                extracted_files.append(os.path.join(torrent.directory, file_path))
-                        else:
-                            extracted_files.append(os.path.join(torrent.directory, file_path))
+        return media_files, extracted_files
 
-            torrent_info = {
-                'hash': torrent.info_hash,
-                'name': torrent.name,
-                'label': torrent.get_custom1() if torrent.get_custom1() else '',
-                'folder': torrent.directory,
-                'completed': torrent.complete,
-                'media_files': media_files,
-                'extract_files': extracted_files
-            }
-
-        except Exception, e:
-            logger.error(loggerHeader + "Failed to get status from rTorrent: %s %s", e, traceback.format_exc())
-            return False
-
-        return torrent_info if torrent_info else False
-
-    def delete_torrent(self, torrent):
-        deleted = []
-
-        for file_item in torrent.get_files():  # will only delete files, not dir/sub-dir
-            file_path = os.path.join(torrent.directory, file_item.path)
-            os.unlink(file_path)
-            deleted.append(file_item.path)
-
-        if torrent.is_multi_file() and torrent.directory.endswith(torrent.name):
-            # remove empty directories bottom up
-            try:
-                for path, _, _ in os.walk(torrent.directory, topdown=False):
-                    os.rmdir(path)
-                    deleted.append(path)
-            except:
-                pass  # its ok, dir not empty
-
-        torrent.erase()  # just removes the torrent, doesn't delete data
-
-        return deleted
 
     def process_file(self, source_file, destination, action):
         file_name = os.path.split(source_file)[1]
@@ -132,7 +77,10 @@ class rProcess(object):
                     shutil.move(source_file, destination_file)
                 elif action == "link":
                     logger.debug(loggerHeader + "Linking file: %s to: %s", file_name, destination)
-                    os.link(source_file, destination_file)
+                    link(source_file, destination_file)
+                elif action == "symlink":
+                    logger.debug(loggerHeader + "Sym-linking file: %s to: %s", file_name, destination)
+                    symlink(source_file, destination_file)
                 elif action == "copy":
                     logger.debug(loggerHeader + "Copying file: %s to: %s", file_name, destination)
                     shutil.copy(source_file, destination_file)
@@ -178,21 +126,33 @@ class rProcess(object):
         delete_finished = config.getboolean("General", "deleteFinished")
         append_label = config.getboolean("General", "appendLabel")
         ignore_label = (config.get("General", "ignoreLabel")).split('|')
+        client_name = config.get("Client", "client")
 
-        if not self.connect():
-            logger.error(loggerHeader + "Couldn't connect to rTorrent, exiting")
+        # TODO: fix this.. ugly!
+        if client_name == 'rtorrent':
+            import rprocess.clients.rtorrent as TorClient
+        elif client_name == 'utorrent':
+            import rprocess.clients.utorrent as TorClient
+
+        client = TorClient.TorrentClient()
+
+        if not client.connect(config.get("Client", "host"),
+                              config.get("Client", "username"),
+                              config.get("Client", "password")):
+            logger.error(loggerHeader + "Couldn't connect to %s, exiting", config.get("Client", "client"))
             sys.exit(-1)
 
-        torrent = self.rt.find_torrent(torrent_hash)
+        torrent = client.find_torrent(torrent_hash)
 
         if torrent is None:
             logger.error(loggerHeader + "Couldn't find torrent with hash: %s", torrent_hash)
             sys.exit(-1)
 
-        torrent_info = self.get_torrent(torrent)
+        torrent_info = client.get_torrent(torrent)
 
         if torrent_info:
             if torrent_info['completed']:
+                logger.info(loggerHeader + "Client: %s", client_name)
                 logger.info(loggerHeader + "Directory: %s", torrent_info['folder'])
                 logger.info(loggerHeader + "Name: %s", torrent_info['name'])
                 logger.debug(loggerHeader + "Hash: %s", torrent_info['hash'])
@@ -208,24 +168,24 @@ class rProcess(object):
 
                 self.make_directories(destination)
 
-                for f in torrent_info['media_files']:  # copy/link/move files
-                    process = self.process_file(f, destination, file_action)
+                media_files, extract_files = self.filter_files(torrent_info['files'])
+
+                for f in media_files:  # copy/link/move files
                     file_name = os.path.split(f)[1]
-                    if process:
+                    if self.process_file(f, destination, file_action):
                         logger.info(loggerHeader + "Successfully processed: %s", file_name)
                     else:
                         logger.error(loggerHeader + "Failed to process: %s", file_name)
 
-                for f in torrent_info['extract_files']:  # extract files
-                    extract = self.extract_file(f, destination)
+                for f in extract_files:  # extract files
                     file_name = os.path.split(f)[1]
-                    if extract:
+                    if self.extract_file(f, destination):
                         logger.info(loggerHeader + "Successfully extracted: %s", file_name)
                     else:
                         logger.error(loggerHeader + "Failed to extract: %s", file_name)
 
                 if delete_finished:
-                    deleted_files = self.delete_torrent(torrent)
+                    deleted_files = client.delete_torrent(torrent)
                     logger.info(loggerHeader + "Removing torrent with hash: %s", torrent_hash)
                     for f in deleted_files:
                         logger.info(loggerHeader + "Removed: %s", f)
@@ -284,7 +244,7 @@ if __name__ == "__main__":
         torrent_hash = b16encode(b32decode(torrent_hash))
 
     if not len(torrent_hash) == 40:
-        logger.error(loggerHeader + "Torrent torrent_hash is missing, or an invalid torrent_hash value has been passed")
+        logger.error(loggerHeader + "Torrent hash is missing, or an invalid hash value has been passed")
     else:
         rp = rProcess()
         rp.main(torrent_hash)
