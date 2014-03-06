@@ -133,12 +133,12 @@ class rProcess(object):
             import rprocess.clients.rtorrent as TorClient
         elif client_name == 'utorrent':
             import rprocess.clients.utorrent as TorClient
-        elif client_name == 'transmission':
-            import rprocess.clients.transmission as TorClient
 
         client = TorClient.TorrentClient()
 
-        if not client.connect(config.get("Client", "host"), config.get("Client", "username"), config.get("Client", "password")):
+        if not client.connect(config.get("Client", "host"),
+                              config.get("Client", "username"),
+                              config.get("Client", "password")):
             logger.error(loggerHeader + "Couldn't connect to %s, exiting", config.get("Client", "client"))
             sys.exit(-1)
 
@@ -171,17 +171,15 @@ class rProcess(object):
                 media_files, extract_files = self.filter_files(torrent_info['files'])
 
                 for f in media_files:  # copy/link/move files
-                    process = self.process_file(f, destination, file_action)
                     file_name = os.path.split(f)[1]
-                    if process:
+                    if self.process_file(f, destination, file_action):
                         logger.info(loggerHeader + "Successfully processed: %s", file_name)
                     else:
                         logger.error(loggerHeader + "Failed to process: %s", file_name)
 
                 for f in extract_files:  # extract files
-                    extract = self.extract_file(f, destination)
                     file_name = os.path.split(f)[1]
-                    if extract:
+                    if self.extract_file(f, destination):
                         logger.info(loggerHeader + "Successfully extracted: %s", file_name)
                     else:
                         logger.error(loggerHeader + "Failed to extract: %s", file_name)
