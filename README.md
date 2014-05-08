@@ -30,8 +30,8 @@ to the bottom of (usally in home/$user/) **.rtorrent.rc** and then edit config.c
 
 ###uTorrent
 - Enable and setup WebUI in uTorrent (set username, password and port)
-- In "Run Program" set it to (note the path's **C:\Python27\pythonw.exe C:\path\to\rProcess.py** bellow)
+- In "Run Program" set it to (note the path's **C:\Python27\pythonw.exe C:\path\to\rProcess.py** below)
 
 ```
-C:\Python27\pythonw.exe C:\path\to\rProcess.py %I
+C:\Python27\pythonw.exe C:\path\to\rProcess.py "%I"
 ```
