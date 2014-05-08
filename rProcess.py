@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#    !/usr/bin/env python
 
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#    
+#
 #    Creator of rProcess: jkaberg, https://github.com/jkaberg
 #    Based on bits and parts of rTorrent module in CouchPotatoServer
 
@@ -20,6 +20,7 @@ import os
 import re
 import sys
 import shutil
+import time
 import logging
 import urllib
 import traceback
@@ -139,57 +140,57 @@ class rProcess(object):
                     raise
                 pass
 
-    def processMedia(mediaProcessor, output_dest):
-    if mediaProcessor == "couchpotato":
-        try:
-            baseURL = config.get("Couchpotato", "baseURL")
-            if not baseURL == '':
-                logger.debug(loggerHeader + "processMedia :: URL base: %s", baseURL)
-        except ConfigParser.NoOptionError:
-            baseURL = ''
+    def processMedia(mediaProcessor, destination):
+        if mediaProcessor == "couchpotato":
+            try:
+                baseURL = config.get("Couchpotato", "baseURL")
+                if not baseURL == '':
+                    logger.debug(loggerHeader + "processMedia :: URL base: %s", baseURL)
+            except ConfigParser.NoOptionError:
+                baseURL = ''
 
-        if config.getboolean("Couchpotato", "ssl"):
-            protocol = "https://"
+            if config.getboolean("Couchpotato", "ssl"):
+                protocol = "https://"
+            else:
+                protocol = "http://"
+            url = protocol + config.get("Couchpotato", "host") + ":" + config.get("Couchpotato", "port") + "/" + baseURL + "api/" + config.get("Couchpotato", "apikey") + "/renamer.scan/?async=1&movie_folder=" + destination
+            myOpener = AuthURLOpener(config.get("Couchpotato", "username"), config.get("Couchpotato", "password"))
+    
+        elif mediaProcessor == "sickbeard":
+            try:
+                baseURL = config.get("Sickbeard", "baseURL")
+                if not baseURL == '':
+                    logger.debug(loggerHeader + "processMedia :: URL base: %s ", baseURL)
+            except ConfigParser.NoOptionError:
+                baseURL = ''
+
+            if config.getboolean("Sickbeard", "ssl"):
+                protocol = "https://"
+            else:
+                protocol = "http://"
+            url = protocol + config.get("Sickbeard", "host") + ":" + config.get("Sickbeard", "port") + "/" + baseURL + "home/postprocess/processEpisode?quiet=1&dir=" + destination
+            myOpener = AuthURLOpener(config.get("Sickbeard", "username"), config.get("Sickbeard", "password"))
         else:
-            protocol = "http://"
-        url = protocol + config.get("Couchpotato", "host") + ":" + config.get("Couchpotato", "port") + "/" + baseURL + "api/" + config.get("Couchpotato", "apikey") + "/renamer.scan/?async=1&movie_folder=" + output_dest
-        myOpener = AuthURLOpener(config.get("Couchpotato", "username"), config.get("Couchpotato", "password"))
+            return
 
-    elif mediaProcessor == "sickbeard":
         try:
-            baseURL = config.get("Sickbeard", "baseURL")
-            if not baseURL == '':
-                logger.debug(loggerHeader + "processMedia :: URL base: %s ", baseURL)
-        except ConfigParser.NoOptionError:
-            baseURL = ''
-
-        if config.getboolean("Sickbeard", "ssl"):
-            protocol = "https://"
-        else:
-            protocol = "http://"
-        url = protocol + config.get("Sickbeard", "host") + ":" + config.get("Sickbeard", "port") + "/" + baseURL + "home/postprocess/processEpisode?quiet=1&dir=" + output_dest
-        myOpener = AuthURLOpener(config.get("Sickbeard", "username"), config.get("Sickbeard", "password"))
-    else:
-        return
-
-    try:
-        urlObj = myOpener.openit(url)
-        logger.debug(loggerHeader + "processMedia :: Opening URL: %s", url)
-    except Exception, e:
-        logger.error(loggerHeader + "processMedia :: Unable to open URL: %s %s %s", (url, e, traceback.format_exc()))
-        raise
-
-    result = urlObj.readlines()
-    for line in result:
-        logger.debug(loggerHeader + "processMedia :: " + line)
-
-    # This is a ugly solution, we need a better one!!
-    timeout = time.time() + 60*2 # 2 min time out
-    while os.path.exists(output_dest):
-        if time.time() > timeout:
-            logger.debug(loggerHeader + "processMedia :: The destination directory hasn't been deleted after 2 minutes, something is wrong")
-            break
-        time.sleep(2)
+            urlObj = myOpener.openit(url)
+            logger.debug(loggerHeader + "processMedia :: Opening URL: %s", url)
+        except Exception, e:
+            logger.error(loggerHeader + "processMedia :: Unable to open URL: %s %s %s", (url, e, traceback.format_exc()))
+            raise
+    
+        result = urlObj.readlines()
+        for line in result:
+            logger.debug(loggerHeader + "processMedia :: " + line)
+    
+        # This is a ugly solution, we need a better one!!
+        timeout = time.time() + 60*2 # 2 min time out
+        while os.path.exists(destination):
+            if time.time() > timeout:
+                logger.debug(loggerHeader + "processMedia :: The destination directory hasn't been deleted after 2 minutes, something is wrong")
+                break
+            time.sleep(2)
     
     def main(self, torrent_hash):
         output_dir = config.get("General", "outputDirectory")
@@ -257,24 +258,24 @@ class rProcess(object):
                     else:
                         logger.error(loggerHeader + "Failed to extract: %s", file_name)
                         
-                if (config.getboolean("Couchpotato", "active") or config.getboolean("Sickbeard", "active")) and (any(word in tr_label for word in cp_label) or any(word in tr_label for word in sb_label)):
+                if (config.getboolean("Couchpotato", "active") or config.getboolean("Sickbeard", "active")) and (any(word in torrent_info['label'] for word in cp_label) or any(word in torrent_info['label'] for word in sb_label)):
                     if file_action == "move" or file_action == "link":
-                        logger.debug(loggerHeader + "Stop seeding torrent with hash: %s", tr_hash)
-                        uTorrent.stop(tr_hash)
+                        logger.debug(loggerHeader + "Stop seeding torrent with hash: %s", torrent_hash)
+                        client.stop(torrent_hash)
 
-                    if any(word in tr_label for word in cp_label):
-                        processMedia("couchpotato", output_dest)
+                    if any(word in torrent_info['label'] for word in cp_label):
+                        self.processMedia("couchpotato", destination)
 
-                    elif any(word in tr_label for word in sb_label):
-                        processMedia("sickbeard", output_dest)
+                    elif any(word in torrent_info['label'] for word in sb_label):
+                        self.processMedia("sickbeard", destination)
                             
                     if file_action == "move":
-                        logger.debug(loggerHeader + "Removing torrent with hash: %s", tr_hash)
-                        uTorrent.removedata(tr_hash)
+                        logger.debug(loggerHeader + "Removing torrent with hash: %s", torrent_hash)
+                        client.delete_torrent(torrent_hash)
                         
                     elif file_action == "link": #it would be best if rProcess checked if the postprocessing completed successfully first
-                        logger.debug(loggerHeader + "Start seeding torrent with hash: %s", tr_hash)
-                        uTorrent.start(tr_hash)
+                        logger.debug(loggerHeader + "Start seeding torrent with hash: %s", torrent_hash)
+                        client.start(torrent_hash)
         
                 if delete_finished:
                     deleted_files = client.delete_torrent(torrent)
