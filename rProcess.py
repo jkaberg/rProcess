@@ -52,6 +52,58 @@ class AuthURLOpener(urllib.FancyURLopener):
     def openit(self, url):
         self.numTries = 0
         return urllib.FancyURLopener.open(self, url)
+        
+    def processMedia(mediaProcessor, destination):
+        if mediaProcessor == "couchpotato":
+            try:
+                baseURL = config.get("Couchpotato", "baseURL")
+                if not baseURL == '':
+                    logger.debug(loggerHeader + "processMedia :: URL base: %s", baseURL)
+            except ConfigParser.NoOptionError:
+                baseURL = ''
+
+            if config.getboolean("Couchpotato", "ssl"):
+                protocol = "https://"
+            else:
+                protocol = "http://"
+            url = protocol + config.get("Couchpotato", "host") + ":" + config.get("Couchpotato", "port") + "/" + baseURL + "api/" + config.get("Couchpotato", "apikey") + "/renamer.scan/?async=1&movie_folder=" + destination
+            myOpener = AuthURLOpener(config.get("Couchpotato", "username"), config.get("Couchpotato", "password"))
+    
+        elif mediaProcessor == "sickbeard":
+            try:
+                baseURL = config.get("Sickbeard", "baseURL")
+                if not baseURL == '':
+                    logger.debug(loggerHeader + "processMedia :: URL base: %s ", baseURL)
+            except ConfigParser.NoOptionError:
+                baseURL = ''
+
+            if config.getboolean("Sickbeard", "ssl"):
+                protocol = "https://"
+            else:
+                protocol = "http://"
+            url = protocol + config.get("Sickbeard", "host") + ":" + config.get("Sickbeard", "port") + "/" + baseURL + "home/postprocess/processEpisode?quiet=1&dir=" + destination
+            myOpener = AuthURLOpener(config.get("Sickbeard", "username"), config.get("Sickbeard", "password"))
+        else:
+            return
+
+        try:
+            urlObj = myOpener.openit(url)
+            logger.debug(loggerHeader + "processMedia :: Opening URL: %s", url)
+        except Exception, e:
+            logger.error(loggerHeader + "processMedia :: Unable to open URL: %s %s %s", (url, e, traceback.format_exc()))
+            raise
+    
+        result = urlObj.readlines()
+        for line in result:
+            logger.debug(loggerHeader + "processMedia :: " + line)
+    
+        # This is a ugly solution, we need a better one!!
+        timeout = time.time() + 60*2 # 2 min time out
+        while os.path.exists(destination):
+            if time.time() > timeout:
+                logger.debug(loggerHeader + "processMedia :: The destination directory hasn't been deleted after 2 minutes, something is wrong")
+                break
+            time.sleep(2)
 
 class rProcess(object):
 
@@ -139,58 +191,6 @@ class rProcess(object):
                                  e, traceback.format_exc())
                     raise
                 pass
-
-    def processMedia(mediaProcessor, destination):
-        if mediaProcessor == "couchpotato":
-            try:
-                baseURL = config.get("Couchpotato", "baseURL")
-                if not baseURL == '':
-                    logger.debug(loggerHeader + "processMedia :: URL base: %s", baseURL)
-            except ConfigParser.NoOptionError:
-                baseURL = ''
-
-            if config.getboolean("Couchpotato", "ssl"):
-                protocol = "https://"
-            else:
-                protocol = "http://"
-            url = protocol + config.get("Couchpotato", "host") + ":" + config.get("Couchpotato", "port") + "/" + baseURL + "api/" + config.get("Couchpotato", "apikey") + "/renamer.scan/?async=1&movie_folder=" + destination
-            myOpener = AuthURLOpener(config.get("Couchpotato", "username"), config.get("Couchpotato", "password"))
-    
-        elif mediaProcessor == "sickbeard":
-            try:
-                baseURL = config.get("Sickbeard", "baseURL")
-                if not baseURL == '':
-                    logger.debug(loggerHeader + "processMedia :: URL base: %s ", baseURL)
-            except ConfigParser.NoOptionError:
-                baseURL = ''
-
-            if config.getboolean("Sickbeard", "ssl"):
-                protocol = "https://"
-            else:
-                protocol = "http://"
-            url = protocol + config.get("Sickbeard", "host") + ":" + config.get("Sickbeard", "port") + "/" + baseURL + "home/postprocess/processEpisode?quiet=1&dir=" + destination
-            myOpener = AuthURLOpener(config.get("Sickbeard", "username"), config.get("Sickbeard", "password"))
-        else:
-            return
-
-        try:
-            urlObj = myOpener.openit(url)
-            logger.debug(loggerHeader + "processMedia :: Opening URL: %s", url)
-        except Exception, e:
-            logger.error(loggerHeader + "processMedia :: Unable to open URL: %s %s %s", (url, e, traceback.format_exc()))
-            raise
-    
-        result = urlObj.readlines()
-        for line in result:
-            logger.debug(loggerHeader + "processMedia :: " + line)
-    
-        # This is a ugly solution, we need a better one!!
-        timeout = time.time() + 60*2 # 2 min time out
-        while os.path.exists(destination):
-            if time.time() > timeout:
-                logger.debug(loggerHeader + "processMedia :: The destination directory hasn't been deleted after 2 minutes, something is wrong")
-                break
-            time.sleep(2)
     
     def main(self, torrent_hash):
         output_dir = config.get("General", "outputDirectory")
