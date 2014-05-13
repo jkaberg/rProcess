@@ -21,7 +21,6 @@ import os
 import sys
 import re
 import shutil
-import time
 import logging
 import traceback
 import ConfigParser
@@ -29,8 +28,9 @@ from base64 import b16encode, b32decode
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'libs'))
 
+from rprocess.helpers.variable import link, symlink, is_rarfile
+
 from libs import requests
-from rprocess.helpers.variable import link, symlink
 from libs.unrar2 import RarFile
 
 ver = 0.3
@@ -49,9 +49,6 @@ class rProcess(object):
                             "compressed")).split('|'))
         ignore_words = (config.get("Miscellaneous", "ignore")).split('|')
 
-        # TODO: get first archive from rar header instead
-        rar_search = '(?P<file>^(?P<base>(?:(?!\.part\d+\.rar$).)*)\.(?:(?:part0*1\.)?rar)$)'
-
         media_files = []
         extracted_files = []
 
@@ -61,9 +58,8 @@ class rProcess(object):
                     media_files.append(f)
 
                 elif f.endswith(archive_ext):
-                    if 'part' in f:
-                        if re.search(rar_search, f):
-                            extracted_files.append(f)
+                    if f.endswith('.rar') and is_rarfile(f):
+                        extracted_files.append(f)
                     else:
                         extracted_files.append(f)
 
