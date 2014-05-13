@@ -156,8 +156,11 @@ class rProcess(object):
         if not port.endswith('/'):
             port += '/'
 
-        if not base_url.endswith('/'):
-            base_url += '/'
+        if base_url:
+            if base_url.startswith('/'):
+                base_url.replace('/', '')
+            if not base_url.endswith('/'):
+                base_url += '/'
 
         if ssl:
             protocol = "https://"
@@ -236,25 +239,30 @@ class rProcess(object):
 
                 media_files, extract_files = self.filter_files(torrent_info['files'])
 
-                if file_action == "move" or file_action == "link":  # This stopping action needs to be told to exclude when it is an archive file
+                # In some cases uTorrent will do a file lock, to circumvent (and allow post processing) we need
+                # to stop the torrent while working with files associated with the torrent
+                if file_action == "move" or file_action == "link":
                     client.stop_torrent(torrent_hash)
                     logger.debug(loggerHeader + "Stopping seeding torrent with hash: %s", torrent_hash)
 
-                for f in media_files:  # copy/link/move files
+                # Loop through media_files and copy/link/move files
+                for f in media_files:
                     file_name = os.path.split(f)[1]
                     if self.process_file(f, destination, file_action):
                         logger.info(loggerHeader + "Successfully performed %s on %s", file_action, file_name)
                     else:
                         logger.error(loggerHeader + "Failed to perform %s on %s", file_action, file_name)
 
-                for f in extract_files:  # extract files
+                # Loop through extract_files and extract all files
+                for f in extract_files:
                     file_name = os.path.split(f)[1]
                     if self.extract_file(f, destination):
                         logger.info(loggerHeader + "Successfully extracted: %s", file_name)
                     else:
                         logger.error(loggerHeader + "Failed to extract: %s", file_name)
 
-
+                # If label in torrent client matches CouchPotato label set in config call CouchPotato/Sick-Beard
+                # to do additional post processing (eg. renaming etc.)
                 if couchpotato and any(word in torrent_info['label'] for word in couch_label):  # call CP postprocess
                     logger.debug(loggerHeader + "Calling CouchPotato to post-process: %s", torrent_info['name'])
                     self.process_media("couchpotato", destination)
@@ -266,13 +274,16 @@ class rProcess(object):
                 else:
                     logger.debug(loggerHeader + "PostProcessor call params not met.")
 
-                # Always delete finished torrent, disregarding file_action
+                # Delete the torrent (wand associated files) if its enabled in config.
+                # Note that it will also delete torrent/files where file action is set to move as there wouldn't be any
+                # files to seed when they've been successfully moved.
                 if delete_finished or file_action == "move":
                     deleted_files = client.delete_torrent(torrent)
                     logger.info(loggerHeader + "Removing torrent with hash: %s", torrent_hash)
                     for f in deleted_files:
                         logger.info(loggerHeader + "Removed: %s", f)
 
+                # Start the torrent again to continue seeding
                 if file_action == "link":
                     # TODO: it would be best if rProcess checked to see if the post-processing completed successfully first - how?
                     client.start_torrent(torrent_hash)
