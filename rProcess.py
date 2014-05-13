@@ -96,10 +96,12 @@ class rProcess(object):
     def extract_file(self, source_file, destination):
         try:
             rar_handle = RarFile(source_file)
-            for info in rar_handle.infolist():
-                if not info.isdir:
-                    logger.info(loggerHeader + "Extracting file: %s to: %s", info.filename, destination)
-                    rar_handle.extract(condition=[info.index], path=destination, withSubpath=False, overwrite=False)
+            for rar_file in rar_handle.infolist():
+                sub_path = os.path.join(destination, rar_file.filename)
+                if rar_file.isdir and not os.path.exists(sub_path):
+                    os.makedirs(sub_path)
+                else:
+                    rar_handle.extract(condition=[rar_file.index], path=destination, withSubpath=True, overwrite=False)
             del rar_handle
             return True
 
