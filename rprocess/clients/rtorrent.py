@@ -53,23 +53,11 @@ class TorrentClient(object):
 
         return torrent_info if torrent_info else False
 
-    def start_torrent(self, torrent_hash):
-        started = []
-        try:
-            self.conn.start(torrent_hash)
-        except Exception:
-            raise
+    def start_torrent(self, torrent):
+        return torrent.start()
 
-        return started
-
-    def stop_torrent(self, torrent_hash):
-        stopped = []
-        try:
-            self.conn.stop(torrent_hash)
-        except Exception:
-            raise
-
-        return stopped
+    def stop_torrent(self, torrent):
+        return torrent.stop()
 
     def delete_torrent(self, torrent):
         deleted = []

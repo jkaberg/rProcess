@@ -123,15 +123,15 @@ class rProcess(object):
     def process_media(self, post_proc, destination):
 
         if post_proc == "couchpotato":
-            ssl = config.getboolean("Couchpotato", "ssl") if config.getboolean("Couchpotato", "ssl") else False
-            host = config.get("Couchpotato", "host") if config.get("Couchpotato", "host") else 'localhost'
-            port = config.get("Couchpotato", "port") if config.get("Couchpotato", "port") else 5050
-            base_url = config.get("Couchpotato", "base_url") if config.get("Couchpotato", "baseURL") else ''
-            api_key = config.get("Couchpotato", "apikey")
+            ssl = config.getboolean("CouchPotato", "ssl") if config.getboolean("CouchPotato", "ssl") else False
+            host = config.get("CouchPotato", "host") if config.get("CouchPotato", "host") else 'localhost'
+            port = config.get("CouchPotato", "port") if config.get("CouchPotato", "port") else 5050
+            base_url = config.get("CouchPotato", "base_url") if config.get("CouchPotato", "base_url") else ''
+            api_key = config.get("CouchPotato", "apikey")
             api_call = "/renamer.scan/?async=1&movie_folder="
 
-            user = config.get("Couchpotato", "username") if config.get("Couchpotato", "username") else ''
-            password = config.get("Couchpotato", "password") if config.get("Couchpotato", "username") else ''
+            user = config.get("CouchPotato", "username") if config.get("CouchPotato", "username") else ''
+            password = config.get("CouchPotato", "password") if config.get("CouchPotato", "username") else ''
 
         elif post_proc == "sickbeard":
             ssl = config.getboolean("Sickbeard", "ssl") if config.getboolean("Sickbeard", "ssl") else False
@@ -239,7 +239,7 @@ class rProcess(object):
                 # In some cases uTorrent will do a file lock, to circumvent (and allow post processing) we need
                 # to stop the torrent while working with files associated with the torrent
                 if file_action == "move" or file_action == "link":
-                    client.stop_torrent(torrent_hash)
+                    client.stop_torrent(torrent)
                     logger.debug(loggerHeader + "Stopping seeding torrent with hash: %s", torrent_hash)
 
                 # Loop through media_files and copy/link/move files
@@ -283,7 +283,7 @@ class rProcess(object):
                 # Start the torrent again to continue seeding
                 if file_action == "link":
                     # TODO: it would be best if rProcess checked to see if the post-processing completed successfully first - how?
-                    client.start_torrent(torrent_hash)
+                    client.start_torrent(torrent)
                     logger.debug(loggerHeader + "Starting seeding torrent with hash: %s", torrent_hash)
 
                 logger.info(loggerHeader + "We're all done here!")
