@@ -123,71 +123,76 @@ class rProcess(object):
                     raise
                 pass
 
-    def process_media(self, media_processor, destination):
-        if media_processor == "couchpotato":
-            try:
-                baseURL = config.get("Couchpotato", "baseURL")
-                if not baseURL == '':
-                    logger.debug(loggerHeader + "process_media :: URL base: %s", baseURL)
-            except ConfigParser.NoOptionError:
-                baseURL = ''
+    def process_media(self, post_proc, destination):
 
-            if config.getboolean("Couchpotato", "ssl"):
-                protocol = "https://"
-            else:
-                protocol = "http://"
-            url = protocol + config.get("Couchpotato", "host") + ":" + config.get("Couchpotato", "port") + "/" + baseURL + "api/" + config.get("Couchpotato", "apikey") + "/renamer.scan/?async=1&movie_folder=" + destination
-            user = config.get("Couchpotato", "username")
-            password = config.get("Couchpotato", "password")
+        if post_proc == "couchpotato":
+            ssl = config.getboolean("Couchpotato", "ssl") if config.getboolean("Couchpotato", "ssl") else False
+            host = config.get("Couchpotato", "host") if config.get("Couchpotato", "host") else 'localhost'
+            port = config.get("Couchpotato", "port") if config.get("Couchpotato", "port") else 5050
+            base_url = config.get("Couchpotato", "base_url") if config.get("Couchpotato", "baseURL") else ''
+            api_key = config.get("Couchpotato", "apikey")
+            api_call = "/renamer.scan/?async=1&movie_folder="
 
-        elif media_processor == "sickbeard":
-            try:
-                baseURL = config.get("Sickbeard", "baseURL")
-                if not baseURL == '':
-                    logger.debug(loggerHeader + "process_media :: URL base: %s ", baseURL)
-            except ConfigParser.NoOptionError:
-                baseURL = ''
+            user = config.get("Couchpotato", "username") if config.get("Couchpotato", "username") else ''
+            password = config.get("Couchpotato", "password") if config.get("Couchpotato", "username") else ''
 
-            if config.getboolean("Sickbeard", "ssl"):
-                protocol = "https://"
-            else:
-                protocol = "http://"
-            url = protocol + config.get("Sickbeard", "host") + ":" + config.get("Sickbeard", "port") + "/" + baseURL + "home/postprocess/processEpisode?quiet=1&dir=" + destination
-            user = config.get("Sickbeard", "username")
-            password = config.get("Sickbeard", "password")
+        elif post_proc == "sickbeard":
+            ssl = config.getboolean("Sickbeard", "ssl") if config.getboolean("Sickbeard", "ssl") else False
+            host = config.get("Sickbeard", "host") if config.get("Sickbeard", "port") else 'localhost'
+            port = config.get("Sickbeard", "port") if config.get("Sickbeard", "port") else 8081
+            base_url = config.get("Sickbeard", "base_url") if config.get("Sickbeard", "baseURL") else ''
+            api_key = config.get("Sickbeard", "apikey")
+            api_call = "/home/postprocess/processEpisode?quiet=1&dir="
+
+            user = config.get("Sickbeard", "username") if config.get("Sickbeard", "username") else ''
+            password = config.get("Sickbeard", "password") if config.get("Sickbeard", "password") else ''
+
         else:
             return
 
+        if not host.endswith(':'):
+            host += ':'
+
+        if not port.endswith('/'):
+            port += '/'
+
+        if not base_url.endswith('/'):
+            base_url += '/'
+
+        if ssl:
+            protocol = "https://"
+        else:
+            protocol = "http://"
+
+        if api_key:
+            url = protocol + host + port + base_url + "api/" + api_key + api_call + destination
+        else:
+            url = protocol + host + port + base_url + api_call + destination
+
         try:
             r = requests.get(url, auth=(user, password))
-            logger.debug(loggerHeader + "Postprocessing with %s :: Opening URL: %s", media_processor, url)
+            logger.debug(loggerHeader + "Postprocessing with %s :: Opening URL: %s", post_proc, url)
         except Exception, e:
-            logger.error(loggerHeader + "Tried postprocessing with %s :: Unable to open URL: %s %s %s", (media_processor, url, e, traceback.format_exc()))
+            logger.error(loggerHeader + "Tried postprocessing with %s :: Unable to open URL: %s %s %s",
+                         (post_proc, url, e, traceback.format_exc()))
             raise
 
         text = r.text
         logger.debug(loggerHeader + "Requests for PostProcessing returned :: %s" + text)
 
-        # This is a ugly solution, we need a better one!!
-        timeout = time.time() + 60 * 2  # 2 min time out
-        while os.path.exists(destination):
-            if time.time() > timeout:
-                logger.debug(
-                    loggerHeader + "process_media :: The destination directory hasn't been deleted after 2 minutes, something is wrong")
-                break
-            time.sleep(2)
 
     def main(self, torrent_hash):
         output_dir = config.get("General", "outputDirectory")
         file_action = config.get("General", "fileAction")
         delete_finished = config.getboolean("General", "deleteFinished")
         append_label = config.getboolean("General", "appendLabel")
-        ignore_label = (config.get("General", "ignoreLabel")).split('|')
+        ignore_label = (config.get("General", "ignoreLabel")).split('|') if (config.get("General", "ignoreLabel")) else ''
         client_name = config.get("Client", "client")
-        cp_active = config.getboolean("CouchPotato", "active")
-        sb_active = config.getboolean("Sickbeard", "active")
-        cp_label = config.get("CouchPotato", "CPLabel")
-        sb_label = config.get("Sickbeard", "SBLabel")
+
+        couchpotato = config.getboolean("CouchPotato", "active")
+        couch_label = config.get("CouchPotato", "label")
+        sickbeard = config.getboolean("Sickbeard", "active")
+        sick_label = config.get("Sickbeard", "label")
 
         # TODO: fix this.. ugly!
         if client_name == 'rtorrent':
@@ -231,7 +236,7 @@ class rProcess(object):
 
                 media_files, extract_files = self.filter_files(torrent_info['files'])
 
-                if (file_action == "move" or file_action == "link") and not extract_files:  # This stopping action needs to be told to exclude when it is an archive file
+                if file_action == "move" or file_action == "link":  # This stopping action needs to be told to exclude when it is an archive file
                     client.stop_torrent(torrent_hash)
                     logger.debug(loggerHeader + "Stopping seeding torrent with hash: %s", torrent_hash)
 
@@ -249,35 +254,29 @@ class rProcess(object):
                     else:
                         logger.error(loggerHeader + "Failed to extract: %s", file_name)
 
-                if cp_active and any(word in torrent_info['label'] for word in cp_label):  # call CP postprocess
-                    logger.debug(loggerHeader + "Couchpotato PostProcessing variables met.")
+
+                if couchpotato and any(word in torrent_info['label'] for word in couch_label):  # call CP postprocess
+                    logger.debug(loggerHeader + "Calling CouchPotato to post-process: %s", torrent_info['name'])
                     self.process_media("couchpotato", destination)
 
-                elif sb_active and any(word in torrent_info['label'] for word in sb_label):  # call SB postprocess
-                    logger.debug(loggerHeader + "Sickbeard PostProcessing variables met.")
+                elif sickbeard and any(word in torrent_info['label'] for word in sick_label):  # call SB postprocess
+                    logger.debug(loggerHeader + "Calling Sick-Beard to post-process: %s", torrent_info['name'])
                     self.process_media("sickbeard", destination)
 
                 else:
                     logger.debug(loggerHeader + "PostProcessor call params not met.")
 
-#   Delete needs to occur ONLY when the file action is move, and exclude when the files are archive
-                if file_action == "move" and not extract_files:
+                # Always delete finished torrent, disregarding file_action
+                if delete_finished or file_action == "move":
                     deleted_files = client.delete_torrent(torrent)
                     logger.info(loggerHeader + "Removing torrent with hash: %s", torrent_hash)
                     for f in deleted_files:
                         logger.info(loggerHeader + "Removed: %s", f)
 
-#   Start needs to occur ONLY when the file action is link, and exclude when the files are archive
-                elif file_action == "link" and not extract_files:
-                # it would be best if rProcess checked to see if the post-processing completed successfully first - how?
+                if file_action == "link":
+                    # TODO: it would be best if rProcess checked to see if the post-processing completed successfully first - how?
                     client.start_torrent(torrent_hash)
                     logger.debug(loggerHeader + "Starting seeding torrent with hash: %s", torrent_hash)
-
-                if delete_finished and file_action != "move":
-                    deleted_files = client.delete_torrent(torrent)
-                    logger.info(loggerHeader + "Removing torrent with hash: %s", torrent_hash)
-                    for f in deleted_files:
-                        logger.info(loggerHeader + "Removed: %s", f)
 
                 logger.info(loggerHeader + "We're all done here!")
 
