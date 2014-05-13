@@ -74,6 +74,24 @@ class TorrentClient(object):
 
         return torrent_info
 
+    def start_torrent(self, torrent_hash):
+        started = []
+        try:
+            self.conn.start(torrent_hash)
+        except Exception:
+            raise
+
+        return started
+
+    def stop_torrent(self, torrent_hash):
+        stopped = []
+        try:
+            self.conn.stop(torrent_hash)
+        except Exception:
+            raise
+
+        return stopped
+
     def delete_torrent(self, torrent):
         deleted = []
         try:

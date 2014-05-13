@@ -7,6 +7,7 @@ post processor for torrent clients
 - Link/symlink/copy/move or extract content to destination
 - Ignore torrents with x label
 - Append label to destination path
+- Send call to Sickbeard or Couchpotato postprocessor
 - Delete torrrent from client (with files) once rProcess is done
 
 ##Supported clients
@@ -20,7 +21,7 @@ post processor for torrent clients
 
 ##Usage
 ###rTorrent
-Add (note the path's **/path/to/rprocess/rProcess.py** bellow)
+Add (note the path's **/path/to/rprocess/rProcess.py** below)
 
 ```
 system.method.set_key=event.download.finished,my_script,"execute={python,/path/to/rprocess/rProcess.py,$d.get_hash=}"
@@ -30,7 +31,7 @@ to the bottom of (usally in home/$user/) **.rtorrent.rc** and then edit config.c
 
 ###uTorrent
 - Enable and setup WebUI in uTorrent (set username, password and port)
-- In "Run Program" set it to (note the path's **C:\Python27\pythonw.exe C:\path\to\rProcess.py** bellow)
+- In "Run Program" set it to (note the path's **C:\Python27\pythonw.exe C:\path\to\rProcess.py** below)
 
 ```
 C:\Python27\pythonw.exe C:\path\to\rProcess.py %I
