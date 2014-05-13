@@ -52,13 +52,14 @@ class rProcess(object):
         media_files = []
         extracted_files = []
 
+        # Sort files into lists depending on file extension
         for f in files:
             if not any(word in f for word in ignore_words):
                 if f.endswith(media_ext):
                     media_files.append(f)
 
                 elif f.endswith(archive_ext):
-                    if f.endswith('.rar') and is_rarfile(f):
+                    if f.endswith('.rar') and is_rarfile(f):  # This will ignore rar sets where all (rar) files end with .rar
                         extracted_files.append(f)
                     else:
                         extracted_files.append(f)
